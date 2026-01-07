@@ -104,6 +104,6 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: ${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}
-          SLACK_MESSAGE: "Build Status: ${{ contains(needs.*.result, 'failure') && 'FAILED' || 'SUCCESS' }}"
+          SLACK_MESSAGE: 'Build Status: ${{ contains(needs.*.result, ''failure'') && ''FAILED'' || ''SUCCESS'' }}'
           SLACK_TITLE: 'CI/CD Pipeline Result'
           SLACK_Footer: 'Windows-Software-Package-Updater'
