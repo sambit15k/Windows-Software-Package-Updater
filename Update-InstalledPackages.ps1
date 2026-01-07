@@ -110,7 +110,7 @@ function Ensure-RunAsAdmin {
 }
 
 function Write-Log {
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '')]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '')]
     param(
         [Parameter(Mandatory=$true)][string]$Message,
         [string]$Color = 'Gray'
@@ -342,12 +342,12 @@ function Invoke-WingetUpdate {
         Write-Log -Message "Upgrading $($pkg.Name) [$($pkg.Id)]..." -Color "Magenta"
         
         if ($PSCmdlet.ShouldProcess($pkg.Name, "Winget Upgrade")) {
-            $args = @('upgrade', '--id', $pkg.Id) + ($AcceptFlags -split ' ')
+            $wingetArgs = @('upgrade', '--id', $pkg.Id) + ($AcceptFlags -split ' ')
             
             $output = ""
             $exitCode = 0
             try {
-                $p = Start-Process -FilePath "winget" -ArgumentList $args -NoNewWindow -PassThru -Wait
+                $p = Start-Process -FilePath "winget" -ArgumentList $wingetArgs -NoNewWindow -PassThru -Wait
                 $exitCode = $p.ExitCode
             } catch {
                 $output = $_.Exception.Message
@@ -360,7 +360,7 @@ function Invoke-WingetUpdate {
                 $status = 'Success'
                 Write-Log -Message "Success." -Color "Green"
             } else {
-                Write-Log -Message "Failed. Exit code: $exitCode" -Color "Red"
+                Write-Log -Message "Failed. Exit code: $exitCode. Error: $output" -Color "Red"
             }
             
             $results += [PSCustomObject]@{
@@ -378,12 +378,6 @@ function Invoke-WingetUpdate {
         Write-Log -Message ("{0}: {1}" -f $_.Name, $_.Result) -Color $color
     }
 }
-
-# ------------------------
-# Main Execution Entry
-# ------------------------
-Ensure-RunAsAdmin
-Invoke-WingetUpdate
 
 
 # ------------------------
