@@ -37,8 +37,8 @@ jobs:
           prerelease: false
 
       - name: Slack Notification
+        continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
-        if: always()
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_TITLE: 'New Release Published'
