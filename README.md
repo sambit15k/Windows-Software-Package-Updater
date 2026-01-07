@@ -4,6 +4,7 @@
 [![Publish Release](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-release.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-release.yml)
 [![Publish Package](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-nuget-publish.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-nuget-publish.yml)
 [![CodeQL Security](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/security-codeql.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/security-codeql.yml)
+[![Dependabot Updates](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/dependabot/dependabot-updates)
 
 
 A PowerShell utility to automate Windows package updates using `winget` (Windows Package Manager) with support for exclusions, logging, and confirmation dialogs.
