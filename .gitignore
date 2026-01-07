@@ -1,5 +1,5 @@
-# Log files
-*.log
+# Log files (but keep the logs directory)
+logs/*.log
 winget-upgrade-*.log
 
 # Generated files

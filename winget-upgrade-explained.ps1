@@ -15,6 +15,11 @@ if (-not (Test-Path -Path $ScriptDir)) {
     New-Item -Path $ScriptDir -ItemType Directory -Force | Out-Null
 }
 
+$LogDir = Join-Path $ScriptDir "logs"
+if (-not (Test-Path -Path $LogDir)) {
+    New-Item -Path $LogDir -ItemType Directory -Force | Out-Null
+}
+
 $ExclusionsFile = Join-Path $ScriptDir "winget-upgrade-exclusions.json"
 $ExcludeIds = @()
 
@@ -27,7 +32,7 @@ if (Test-Path $ExclusionsFile) {
 }
 
 $TimeStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$LogFile = Join-Path $ScriptDir ("winget-upgrade-" + $TimeStamp + ".log")
+$LogFile = Join-Path $LogDir ("winget-upgrade-" + $TimeStamp + ".log")
 $AcceptFlags = '--accept-package-agreements --accept-source-agreements'
 
 # ------------------------

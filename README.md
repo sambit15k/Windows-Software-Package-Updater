@@ -67,8 +67,9 @@ Edit **winget-upgrade-exclusions.json** to exclude packages:
 ## Logging
 
 Logs are saved automatically to:
-- Default: `%USERPROFILE%\Documents\chatgpt\winget-upgrade-YYYYMMDD-HHMMSS.log`
+- Default: `%USERPROFILE%\Documents\chatgpt\logs\winget-upgrade-YYYYMMDD-HHMMSS.log`
 - Log file path is displayed when the script runs
+- Organized in a dedicated `logs` directory for easy management
 
 Logs contain:
 - All packages detected as upgradable
