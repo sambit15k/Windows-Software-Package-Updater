@@ -1,0 +1,14 @@
+# This file is deprecated and kept only for Dependabot compatibility
+# The actual CI/CD workflow is in pipeline-ci.yml
+# This file can be safely deleted after Dependabot cache clears
+
+name: Deprecated CI
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: echo "This workflow is deprecated. See pipeline-ci.yml"
