@@ -38,6 +38,6 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_TITLE: 'NuGet Package Published'
-          SLACK_MESSAGE: 'Package version ${{ github.ref_name }} pushed to GitHub Packages.'
+          SLACK_MESSAGE: "Package version ${{ github.ref_name }} pushed to GitHub Packages."
           SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
           SLACK_Footer: 'Windows-Software-Package-Updater'

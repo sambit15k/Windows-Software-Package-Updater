@@ -1,8 +1,9 @@
 # Windows Software Package Updater
 
-[![Enterprise CI/CD](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/ci.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/ci.yml)
-[![Publish Release](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/release.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/release.yml)
-[![Publish Package](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/publish-package.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/publish-package.yml)
+[![Enterprise CI/CD](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-ci.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-ci.yml)
+[![Publish Release](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-release.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-release.yml)
+[![Publish Package](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-nuget-publish.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-nuget-publish.yml)
+[![CodeQL Security](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/security-codeql.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/security-codeql.yml)
 
 
 A PowerShell utility to automate Windows package updates using `winget` (Windows Package Manager) with support for exclusions, logging, and confirmation dialogs.
