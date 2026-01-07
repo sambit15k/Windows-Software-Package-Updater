@@ -35,11 +35,24 @@ jobs:
         run: nuget push *.nupkg -Source "GPR" -SkipDuplicate
 
       - name: Slack Notification
-        uses: rtCamp/action-slack-notify@v2
         if: always()
+        shell: powershell
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_TITLE: 'NuGet Package Published'
-          SLACK_MESSAGE: "Package version ${{ github.ref_name }} pushed to GitHub Packages."
-          SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
-          SLACK_Footer: 'Windows-Software-Package-Updater'
+        run: |
+          $Color = if ("${{ job.status }}" -eq "success") { "good" } else { "danger" }
+          $Message = "Package version ${{ github.ref_name }} pushed to GitHub Packages."
+          $Title = "NuGet Package Published"
+          
+          $Payload = @{
+              attachments = @(
+                  @{
+                      color = $Color
+                      title = $Title
+                      text  = $Message
+                      footer = "Windows-Software-Package-Updater"
+                  }
+              )
+          }
+          
+          Invoke-RestMethod -Uri $env:SLACK_WEBHOOK -Method Post -Body ($Payload | ConvertTo-Json -Depth 4) -ContentType 'application/json'
