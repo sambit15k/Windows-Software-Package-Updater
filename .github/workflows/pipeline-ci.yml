@@ -114,9 +114,11 @@ jobs:
     name: Slack Notification
     runs-on: ubuntu-latest
     needs: [lint-and-analyze, validation, package]
-    if: always() && secrets.SLACK_WEBHOOK_URL != ''
+    if: always()
     steps:
       - name: Slack Notification
+        # Note: IDE may show error for 'secrets' context, but this is valid GitHub Actions syntax
+        if: secrets.SLACK_WEBHOOK_URL != ''
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
