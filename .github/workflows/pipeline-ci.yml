@@ -71,19 +71,36 @@ jobs:
 
   package:
     name: Build & Publish Artifact
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: validation
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Prepare Artifacts
         run: |
-          mkdir release
-          cp Update-InstalledPackages.ps1 release/
-          cp README.md release/
-          # Include exclusions file if it exists as a template
-          if [ -f winget-upgrade-exclusions.json ]; then cp winget-upgrade-exclusions.json release/; fi
+          New-Item -ItemType Directory -Force -Path release
+          Copy-Item Update-InstalledPackages.ps1 -Destination release/
+          Copy-Item README.md -Destination release/
+          if (Test-Path winget-upgrade-exclusions.json) { Copy-Item winget-upgrade-exclusions.json -Destination release/ }
+        shell: powershell
+
+      - name: Pack NuGet
+        run: nuget pack WindowsSoftwarePackageUpdater.nuspec -OutputDirectory release
+        shell: powershell
+
+      - name: Register GitHub Package Registry
+        run: nuget sources add -Name "GitHub" -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" -UserName "${{ github.repository_owner }}" -Password "${{ secrets.GITHUB_TOKEN }}"
+        shell: powershell
+
+      - name: Publish to GitHub Packages
+        if: github.ref == 'refs/heads/main'
+        run: |
+          nuget push release\*.nupkg -Source "GitHub" -SkipDuplicate
+        shell: powershell
 
       - name: Upload Release Artifact
         uses: actions/upload-artifact@v4
