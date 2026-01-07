@@ -38,7 +38,7 @@ Add-Type -AssemblyName System.Windows.Forms
 # Determine Script Directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $ScriptDir) {
-    $ScriptDir = "C:\Users\$env:USERNAME\Documents\chatgpt" # Fallback legacy path
+    $ScriptDir = "C:\Users\$env:USERNAME\Documents\chatgpt"
 }
 
 # Determine Log File Path
@@ -53,7 +53,6 @@ if (-not $LogPath) {
     $TimeStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $Script:CurrentLogFile = Join-Path $LogPath ("winget-upgrade-" + $TimeStamp + ".log")
 } else {
-    # Assume it's a full file path
     $parent = Split-Path -Parent $LogPath
     if (-not (Test-Path -Path $parent)) {
         New-Item -Path $parent -ItemType Directory -Force | Out-Null
@@ -72,7 +71,7 @@ $AcceptFlags = '--accept-package-agreements --accept-source-agreements'
 # Functions
 # ------------------------
 
-function Ensure-RunAsAdmin {
+function Assert-AdminPrivileges {
     $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
     if (-not $principal.IsInRole([System.Security.Principal.WindowsBuiltinRole]::Administrator)) {
@@ -109,7 +108,7 @@ function Ensure-RunAsAdmin {
     }
 }
 
-function Write-Log {
+function Write-WingetLog {
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '')]
     param(
         [Parameter(Mandatory=$true)][string]$Message,
@@ -136,12 +135,12 @@ function Show-GuiConfirmation {
     return $result -eq [System.Windows.Forms.DialogResult]::Yes
 }
 
-function Get-WingetUpgrades {
+function Get-WingetUpgrade {
     <#
     .SYNOPSIS
         Wraps the logic of trying JSON first, then failing back to Table parsing.
     #>
-    Write-Log -Message "Querying winget for available upgrades..." -Color "Cyan"
+    Write-WingetLog -Message "Querying winget for available upgrades..." -Color "Cyan"
     
     $upgrades = @()
     $triedJson = $false
@@ -162,21 +161,21 @@ function Get-WingetUpgrades {
         $upgrades = ConvertFrom-WingetJson -RawText $rawText
         
         if ($upgrades) {
-            Write-Log -Message "Successfully parsed upgrades from winget JSON output." -Color "DarkGray"
+            Write-WingetLog -Message "Successfully parsed upgrades from winget JSON output." -Color "DarkGray"
             return $upgrades
         } else {
             throw "Failed to parse JSON from winget output."
         }
     } catch {
         if ($triedJson) {
-            Write-Log -Message ("Winget JSON attempt failed: {0}. Falling back to table parsing." -f $_.Exception.Message) -Color "Yellow"
+            Write-WingetLog -Message ("Winget JSON attempt failed: {0}. Falling back to table parsing." -f $_.Exception.Message) -Color "Yellow"
         } else {
-            Write-Log -Message "Winget does not support JSON output (or failed). Falling back to table parsing." -Color "Yellow"
+            Write-WingetLog -Message "Winget does not support JSON output (or failed). Falling back to table parsing." -Color "Yellow"
         }
     }
 
     # Fallback
-    Write-Log -Message "Parsing winget table output..." -Color "DarkGray"
+    Write-WingetLog -Message "Parsing winget table output..." -Color "DarkGray"
     $raw = winget upgrade 2>&1
     Add-Content -Path $Script:CurrentLogFile -Value "`n===== RAW winget table output =====`n"
     return ConvertFrom-WingetTable -RawLines $raw
@@ -221,7 +220,7 @@ function ConvertFrom-WingetJson {
         }
         return $results
     } catch {
-        Write-Log -Message "Error internal parsing JSON: $_" -Color "Red"
+        Write-WingetLog -Message "Error internal parsing JSON: $_" -Color "Red"
         return $null
     }
 }
@@ -249,9 +248,6 @@ function ConvertFrom-WingetTable {
                 if ($name -match '^(.*)\s\[(.*)\]$') {
                     $name = $matches[1]
                     $id = $matches[2]
-                    # remaining cols shift? usually table is consistent. 
-                    # If ID was merged in col 1, col 2 is probably Version.
-                    # Let's trust the split count for now.
                 } else {
                     $id = $cols[1].Trim()
                 }
@@ -273,30 +269,36 @@ function ConvertFrom-WingetTable {
 
 function Invoke-WingetUpdate {
     [CmdletBinding(SupportsShouldProcess=$true)]
-    param()
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$ExclusionsFile,
+        
+        [Parameter(Mandatory=$false)]
+        [switch]$Force
+    )
 
     # 1. Load Exclusions
     $ExcludeIds = @()
     if ($ExclusionsFile -and (Test-Path $ExclusionsFile)) {
         try {
             $ExcludeIds = Get-Content -Path $ExclusionsFile -Raw | ConvertFrom-Json -ErrorAction Stop
-            Write-Log -Message "Loaded exclusions from $ExclusionsFile" -Color "DarkGray"
+            Write-WingetLog -Message "Loaded exclusions from $ExclusionsFile" -Color "DarkGray"
         } catch {
             Write-Warning "Could not read '$ExclusionsFile'. Error: $_"
         }
     }
 
-    Write-Log -Message "Starting upgrade session. Log: $Script:CurrentLogFile" -Color "Cyan"
+    Write-WingetLog -Message "Starting upgrade session. Log: $Script:CurrentLogFile" -Color "Cyan"
 
     # 2. Get Upgrades
-    $upgrades = Get-WingetUpgrades
+    $upgrades = Get-WingetUpgrade
 
     if (-not $upgrades -or $upgrades.Count -eq 0) {
-        Write-Log -Message "No upgradable packages detected." -Color "Green"
+        Write-WingetLog -Message "No upgradable packages detected." -Color "Green"
         return
     }
 
-    Write-Log -Message ("Found {0} potential upgrades." -f $upgrades.Count) -Color "Cyan"
+    Write-WingetLog -Message ("Found {0} potential upgrades." -f $upgrades.Count) -Color "Cyan"
 
     # 3. Apply Exclusions
     $toUpgrade = @()
@@ -317,29 +319,29 @@ function Invoke-WingetUpdate {
     }
 
     if ($toUpgrade.Count -eq 0) {
-        Write-Log -Message "All available upgrades are excluded." -Color "Yellow"
+        Write-WingetLog -Message "All available upgrades are excluded." -Color "Yellow"
         return
     }
 
     # 4. Confirm
-    Write-Log -Message "Planned upgrades:" -Color "Cyan"
+    Write-WingetLog -Message "Planned upgrades:" -Color "Cyan"
     $toUpgrade | ForEach-Object { 
-        Write-Log -Message (" - {0} [{1}] ({2} -> {3})" -f $_.Name, $_.Id, $_.Version, $_.Available) 
+        Write-WingetLog -Message (" - {0} [{1}] ({2} -> {3})" -f $_.Name, $_.Id, $_.Version, $_.Available) 
     }
 
     if (-not $Force) {
         if (-not (Show-GuiConfirmation)) {
-            Write-Log -Message "User canceled." -Color "Yellow"
+            Write-WingetLog -Message "User canceled." -Color "Yellow"
             return
         }
     } else {
-        Write-Log -Message "Force enabled, proceeding..." -Color "Cyan"
+        Write-WingetLog -Message "Force enabled, proceeding..." -Color "Cyan"
     }
 
     # 5. Execute
     $results = @()
     foreach ($pkg in $toUpgrade) {
-        Write-Log -Message "Upgrading $($pkg.Name) [$($pkg.Id)]..." -Color "Magenta"
+        Write-WingetLog -Message "Upgrading $($pkg.Name) [$($pkg.Id)]..." -Color "Magenta"
         
         if ($PSCmdlet.ShouldProcess($pkg.Name, "Winget Upgrade")) {
             $wingetArgs = @('upgrade', '--id', $pkg.Id) + ($AcceptFlags -split ' ')
@@ -358,9 +360,9 @@ function Invoke-WingetUpdate {
             $status = 'Failed'
             if ($exitCode -eq 0 -or $exitCode -eq -1978335189) {
                 $status = 'Success'
-                Write-Log -Message "Success." -Color "Green"
+                Write-WingetLog -Message "Success." -Color "Green"
             } else {
-                Write-Log -Message "Failed. Exit code: $exitCode. Error: $output" -Color "Red"
+                Write-WingetLog -Message "Failed. Exit code: $exitCode. Error: $output" -Color "Red"
             }
             
             $results += [PSCustomObject]@{
@@ -372,16 +374,15 @@ function Invoke-WingetUpdate {
     }
 
     # 6. Summary
-    Write-Log -Message "--- Summary ---" -Color "Cyan"
+    Write-WingetLog -Message "--- Summary ---" -Color "Cyan"
     $results | ForEach-Object {
         $color = if ($_.Result -eq 'Success') { 'Green' } else { 'Red' }
-        Write-Log -Message ("{0}: {1}" -f $_.Name, $_.Result) -Color $color
+        Write-WingetLog -Message ("{0}: {1}" -f $_.Name, $_.Result) -Color $color
     }
 }
-
 
 # ------------------------
 # Main Execution Entry
 # ------------------------
-Ensure-RunAsAdmin
-Invoke-WingetUpdate
+Assert-AdminPrivileges
+Invoke-WingetUpdate -ExclusionsFile $ExclusionsFile -Force:$Force
