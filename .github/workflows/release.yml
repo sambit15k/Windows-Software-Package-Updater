@@ -1,0 +1,37 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers when you push a tag like v1.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Package Release Assets
+        run: |
+          mkdir assets
+          cp Update-InstalledPackages.ps1 assets/
+          cp README.md assets/
+          if [ -f winget-upgrade-exclusions.json ]; then cp winget-upgrade-exclusions.json assets/; fi
+          
+          # Create a specific zip name with the tag
+          zip -r Windows-Software-Package-Updater-${{ github.ref_name }}.zip assets
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Windows-Software-Package-Updater-${{ github.ref_name }}.zip
+            Update-InstalledPackages.ps1
+          generate_release_notes: true
+          draft: false
+          prerelease: false

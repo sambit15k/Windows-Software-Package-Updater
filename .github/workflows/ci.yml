@@ -1,0 +1,94 @@
+name: Enterprise CI/CD
+
+on:
+  push:
+    branches: [ "main", "master", "develop" ]
+  pull_request:
+    branches: [ "main", "master", "develop" ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  lint-and-analyze:
+    name: PSScriptAnalyzer & Security
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run PSScriptAnalyzer
+        uses: microsoft/psscriptanalyzer-action@v1.1
+        with:
+          path: .\
+          recurse: true
+          output: results.sarif
+          # Treat errors as fatal, warnings as info
+          severity: 'Error'
+      
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@v4
+        if: success() || failure()
+        with:
+          sarif_file: results.sarif
+
+  validation:
+    name: Syntax & Integrity Check
+    runs-on: windows-latest
+    needs: lint-and-analyze
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Verify PowerShell Syntax
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          Write-Host "Verifying script syntax..."
+          
+          # 1. Check if file exists and command is discoverable
+          $cmd = Get-Command .\Update-InstalledPackages.ps1
+          Write-Host "Found command: $($cmd.Name)"
+          
+          # 2. Deep parser check
+          $code = Get-Content -Path .\Update-InstalledPackages.ps1 -Raw
+          $errors = $null
+          $tokens = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseInput($code, [ref]$tokens, [ref]$errors)
+          
+          if ($errors) {
+              Write-Error "Syntax errors found:"
+              $errors | Format-List | Out-String | Write-Host -ForegroundColor Red
+              exit 1
+          }
+          Write-Host "Syntax check passed successfully." -ForegroundColor Green
+
+  package:
+    name: Build & Publish Artifact
+    runs-on: ubuntu-latest
+    needs: validation
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Prepare Artifacts
+        run: |
+          mkdir release
+          cp Update-InstalledPackages.ps1 release/
+          cp README.md release/
+          # Include exclusions file if it exists as a template
+          if [ -f winget-upgrade-exclusions.json ]; then cp winget-upgrade-exclusions.json release/; fi
+
+      - name: Upload Release Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Software-Package-Updater
+          path: release/
+          if-no-files-found: error
+          retention-days: 5
