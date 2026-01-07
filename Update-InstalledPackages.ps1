@@ -71,20 +71,20 @@ $AcceptFlags = '--accept-package-agreements --accept-source-agreements'
 # Functions
 # ------------------------
 
-function Assert-AdminPrivileges {
+function Assert-AdminPrivilege {
     $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
     if (-not $principal.IsInRole([System.Security.Principal.WindowsBuiltinRole]::Administrator)) {
         Write-Warning "Not running as Administrator. Relaunching elevated..."
         $psi = New-Object System.Diagnostics.ProcessStartInfo
-        
+
         # Prefer pwsh if available, else powershell
         if (Get-Command pwsh -ErrorAction SilentlyContinue) {
             $psi.FileName = 'pwsh.exe'
         } else {
             $psi.FileName = 'powershell.exe'
         }
-        
+
         # Reconstruct arguments
         $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $MyInvocation.MyCommand.Path)
         $BoundParameters.GetEnumerator() | ForEach-Object {
@@ -98,7 +98,7 @@ function Assert-AdminPrivileges {
 
         $psi.Arguments = $argsList -join " "
         $psi.Verb = 'runas'
-        
+
         try {
             [System.Diagnostics.Process]::Start($psi) | Out-Null
         } catch {
@@ -141,7 +141,7 @@ function Get-WingetUpgrade {
         Wraps the logic of trying JSON first, then failing back to Table parsing.
     #>
     Write-WingetLog -Message "Querying winget for available upgrades..." -Color "Cyan"
-    
+
     $upgrades = @()
     $triedJson = $false
 
@@ -157,9 +157,9 @@ function Get-WingetUpgrade {
         $triedJson = $true
         # Log raw JSON attempt snippet
         Add-Content -Path $Script:CurrentLogFile -Value "`n===== RAW winget JSON ATTEMPT =====`n"
-        
+
         $upgrades = ConvertFrom-WingetJson -RawText $rawText
-        
+
         if ($upgrades) {
             Write-WingetLog -Message "Successfully parsed upgrades from winget JSON output." -Color "DarkGray"
             return $upgrades
@@ -251,7 +251,7 @@ function ConvertFrom-WingetTable {
                 } else {
                     $id = $cols[1].Trim()
                 }
-                
+
                 $results += [PSCustomObject]@{
                     Name      = $name
                     Id        = $id
@@ -272,7 +272,7 @@ function Invoke-WingetUpdate {
     param(
         [Parameter(Mandatory=$false)]
         [string]$ExclusionsFile,
-        
+
         [Parameter(Mandatory=$false)]
         [switch]$Force
     )
@@ -305,11 +305,11 @@ function Invoke-WingetUpdate {
     foreach ($u in $upgrades) {
         # Normalize ID for comparison (remove version tags sometimes in ID field e.g. "Vendor.App [Source]")
         $cleanId = ($u.Id -split '[\s\[]')[0]
-        
+
         $isExcluded = $false
         foreach ($ex in $ExcludeIds) {
-            if ($cleanId -ieq $ex -or $u.Id -ieq $ex) { 
-                $isExcluded = $true; break 
+            if ($cleanId -ieq $ex -or $u.Id -ieq $ex) {
+                $isExcluded = $true; break
             }
         }
 
@@ -325,8 +325,8 @@ function Invoke-WingetUpdate {
 
     # 4. Confirm
     Write-WingetLog -Message "Planned upgrades:" -Color "Cyan"
-    $toUpgrade | ForEach-Object { 
-        Write-WingetLog -Message (" - {0} [{1}] ({2} -> {3})" -f $_.Name, $_.Id, $_.Version, $_.Available) 
+    $toUpgrade | ForEach-Object {
+        Write-WingetLog -Message (" - {0} [{1}] ({2} -> {3})" -f $_.Name, $_.Id, $_.Version, $_.Available)
     }
 
     if (-not $Force) {
@@ -342,10 +342,10 @@ function Invoke-WingetUpdate {
     $results = @()
     foreach ($pkg in $toUpgrade) {
         Write-WingetLog -Message "Upgrading $($pkg.Name) [$($pkg.Id)]..." -Color "Magenta"
-        
+
         if ($PSCmdlet.ShouldProcess($pkg.Name, "Winget Upgrade")) {
             $wingetArgs = @('upgrade', '--id', $pkg.Id) + ($AcceptFlags -split ' ')
-            
+
             $output = ""
             $exitCode = 0
             try {
@@ -364,7 +364,7 @@ function Invoke-WingetUpdate {
             } else {
                 Write-WingetLog -Message "Failed. Exit code: $exitCode. Error: $output" -Color "Red"
             }
-            
+
             $results += [PSCustomObject]@{
                 Name = $pkg.Name
                 Id = $pkg.Id
@@ -384,5 +384,5 @@ function Invoke-WingetUpdate {
 # ------------------------
 # Main Execution Entry
 # ------------------------
-Assert-AdminPrivileges
+Assert-AdminPrivilege
 Invoke-WingetUpdate -ExclusionsFile $ExclusionsFile -Force:$Force
