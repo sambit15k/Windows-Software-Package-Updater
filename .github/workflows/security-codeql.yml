@@ -20,9 +20,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript' ]
-        # CodeQL supports [ 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift' ]
-        # PowerShell is NOT natively supported. We include JS as placeholder/future-proof.
+        language: [ 'actions' ]
+        # CodeQL supports [ 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift', 'actions' ]
+        # Since this path contains no JS, but does contain GitHub Actions workflows, we scan 'actions'.
 
     steps:
     - name: Checkout repository

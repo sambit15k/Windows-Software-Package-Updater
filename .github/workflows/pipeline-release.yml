@@ -42,6 +42,6 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_TITLE: 'New Release Published'
-          SLACK_MESSAGE: 'Release ${{ github.ref_name }} has been published successfully.'
+          SLACK_MESSAGE: "Release ${{ github.ref_name }} has been published successfully."
           SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
           SLACK_Footer: 'Windows-Software-Package-Updater'
