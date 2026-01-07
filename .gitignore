@@ -1,0 +1,14 @@
+# Log files
+*.log
+winget-upgrade-*.log
+
+# Generated files
+*.tmp
+*.temp
+
+# VS Code workspace settings (optional, keep the .code-workspace file)
+# .vscode/
+
+# Operating system files
+Thumbs.db
+.DS_Store
