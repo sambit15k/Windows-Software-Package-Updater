@@ -21,7 +21,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run PSScriptAnalyzer
         uses: microsoft/psscriptanalyzer-action@6b2948b1944407914a58661c49941824d149734f # v1.1
@@ -44,7 +44,7 @@ jobs:
     needs: lint-and-analyze
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Verify PowerShell Syntax
         shell: powershell
@@ -78,7 +78,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Prepare Artifacts
         run: |
@@ -103,7 +103,7 @@ jobs:
         shell: powershell
 
       - name: Upload Release Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Windows-Software-Package-Updater
           path: release/
