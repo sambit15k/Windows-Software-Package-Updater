@@ -1,0 +1,34 @@
+name: Publish Package
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-gpr:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup NuGet
+        uses: nuget/setup-nuget@v2
+        with:
+          nuget-version: '6.x'
+
+      - name: Configure GitHub Packages Registry
+        run: nuget source Add -Name "GPR" -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" -UserName "${{ github.repository_owner }}" -Password "${{ secrets.GITHUB_TOKEN }}"
+
+      # We need to update the version in the nuspec to match the release tag (stripping 'v')
+      - name: Update Version
+        run: |
+          $ver = "${{ github.event.release.tag_name }}".TrimStart('v')
+          (Get-Content WindowsSoftwarePackageUpdater.nuspec) -replace '<version>.*</version>', "<version>$ver</version>" | Set-Content WindowsSoftwarePackageUpdater.nuspec
+
+      - name: Pack
+        run: nuget pack WindowsSoftwarePackageUpdater.nuspec
+
+      - name: Push to GitHub Packages
+        run: nuget push *.nupkg -Source "GPR" -SkipDuplicate
