@@ -48,17 +48,17 @@ if (-not $LogPath) {
         New-Item -Path $LogBaseDir -ItemType Directory -Force | Out-Null
     }
     $TimeStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $Global:CurrentLogFile = Join-Path $LogBaseDir ("winget-upgrade-" + $TimeStamp + ".log")
+    $Script:CurrentLogFile = Join-Path $LogBaseDir ("winget-upgrade-" + $TimeStamp + ".log")
 } elseif (Test-Path -Path $LogPath -PathType Container) {
     $TimeStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $Global:CurrentLogFile = Join-Path $LogPath ("winget-upgrade-" + $TimeStamp + ".log")
+    $Script:CurrentLogFile = Join-Path $LogPath ("winget-upgrade-" + $TimeStamp + ".log")
 } else {
     # Assume it's a full file path
     $parent = Split-Path -Parent $LogPath
     if (-not (Test-Path -Path $parent)) {
         New-Item -Path $parent -ItemType Directory -Force | Out-Null
     }
-    $Global:CurrentLogFile = $LogPath
+    $Script:CurrentLogFile = $LogPath
 }
 
 # Determine Exclusions File
@@ -76,7 +76,7 @@ function Ensure-RunAsAdmin {
     $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
     if (-not $principal.IsInRole([System.Security.Principal.WindowsBuiltinRole]::Administrator)) {
-        Write-Host "Not running as Administrator. Relaunching elevated..." -ForegroundColor Yellow
+        Write-Warning "Not running as Administrator. Relaunching elevated..."
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         
         # Prefer pwsh if available, else powershell
@@ -103,13 +103,14 @@ function Ensure-RunAsAdmin {
         try {
             [System.Diagnostics.Process]::Start($psi) | Out-Null
         } catch {
-            Write-Host "Failed to relaunch elevated: $_" -ForegroundColor Red
+            Write-Error "Failed to relaunch elevated: $_"
         }
         Exit
     }
 }
 
 function Write-Log {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '')]
     param(
         [Parameter(Mandatory=$true)][string]$Message,
         [string]$Color = 'Gray'
@@ -118,7 +119,7 @@ function Write-Log {
     $line = "[$ts] $Message"
     Write-Host $line -ForegroundColor $Color
     try {
-        Add-Content -Path $Global:CurrentLogFile -Value $line -ErrorAction Stop
+        Add-Content -Path $Script:CurrentLogFile -Value $line -ErrorAction Stop
     } catch {
         # Fallback if log file isn't writable
         Write-Host " [Error writing to log: $_]" -ForegroundColor Red
@@ -156,7 +157,7 @@ function Get-WingetUpgrades {
 
         $triedJson = $true
         # Log raw JSON attempt snippet
-        Add-Content -Path $Global:CurrentLogFile -Value "`n===== RAW winget JSON ATTEMPT =====`n"
+        Add-Content -Path $Script:CurrentLogFile -Value "`n===== RAW winget JSON ATTEMPT =====`n"
         
         $upgrades = ConvertFrom-WingetJson -RawText $rawText
         
@@ -177,7 +178,7 @@ function Get-WingetUpgrades {
     # Fallback
     Write-Log -Message "Parsing winget table output..." -Color "DarkGray"
     $raw = winget upgrade 2>&1
-    Add-Content -Path $Global:CurrentLogFile -Value "`n===== RAW winget table output =====`n"
+    Add-Content -Path $Script:CurrentLogFile -Value "`n===== RAW winget table output =====`n"
     return ConvertFrom-WingetTable -RawLines $raw
 }
 
@@ -271,7 +272,7 @@ function ConvertFrom-WingetTable {
 }
 
 function Invoke-WingetUpdate {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess=$true)]
     param()
 
     # 1. Load Exclusions
@@ -285,7 +286,7 @@ function Invoke-WingetUpdate {
         }
     }
 
-    Write-Log -Message "Starting upgrade session. Log: $Global:CurrentLogFile" -Color "Cyan"
+    Write-Log -Message "Starting upgrade session. Log: $Script:CurrentLogFile" -Color "Cyan"
 
     # 2. Get Upgrades
     $upgrades = Get-WingetUpgrades
@@ -340,34 +341,33 @@ function Invoke-WingetUpdate {
     foreach ($pkg in $toUpgrade) {
         Write-Log -Message "Upgrading $($pkg.Name) [$($pkg.Id)]..." -Color "Magenta"
         
-        $args = @('upgrade', '--id', $pkg.Id) + ($AcceptFlags -split ' ')
-        
-        $output = ""
-        $exitCode = 0
-        try {
-            $p = Start-Process -FilePath "winget" -ArgumentList $args -NoNewWindow -PassThru -Wait
-            $exitCode = $p.ExitCode
-        } catch {
-            $output = $_.Exception.Message
-            $exitCode = -1
-        }
+        if ($PSCmdlet.ShouldProcess($pkg.Name, "Winget Upgrade")) {
+            $args = @('upgrade', '--id', $pkg.Id) + ($AcceptFlags -split ' ')
+            
+            $output = ""
+            $exitCode = 0
+            try {
+                $p = Start-Process -FilePath "winget" -ArgumentList $args -NoNewWindow -PassThru -Wait
+                $exitCode = $p.ExitCode
+            } catch {
+                $output = $_.Exception.Message
+                $exitCode = -1
+            }
 
-        # Check success (0 or 'No applicable upgrade' code)
-        # Note: Start-Process -NoNewWindow writes directly to host, we can't easily capture output to var AND show it 
-        # unless we redirect. For simplicity in this script, we rely on ExitCode.
-        
-        $status = 'Failed'
-        if ($exitCode -eq 0 -or $exitCode -eq -1978335189) {
-            $status = 'Success'
-            Write-Log -Message "Success." -Color "Green"
-        } else {
-            Write-Log -Message "Failed. Exit code: $exitCode" -Color "Red"
-        }
-        
-        $results += [PSCustomObject]@{
-            Name = $pkg.Name
-            Id = $pkg.Id
-            Result = $status
+            # Check success (0 or 'No applicable upgrade' code)
+            $status = 'Failed'
+            if ($exitCode -eq 0 -or $exitCode -eq -1978335189) {
+                $status = 'Success'
+                Write-Log -Message "Success." -Color "Green"
+            } else {
+                Write-Log -Message "Failed. Exit code: $exitCode" -Color "Red"
+            }
+            
+            $results += [PSCustomObject]@{
+                Name = $pkg.Name
+                Id = $pkg.Id
+                Result = $status
+            }
         }
     }
 
@@ -378,6 +378,13 @@ function Invoke-WingetUpdate {
         Write-Log -Message ("{0}: {1}" -f $_.Name, $_.Result) -Color $color
     }
 }
+
+# ------------------------
+# Main Execution Entry
+# ------------------------
+Ensure-RunAsAdmin
+Invoke-WingetUpdate
+
 
 # ------------------------
 # Main Execution Entry
