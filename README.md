@@ -22,8 +22,7 @@ A PowerShell utility to automate Windows package updates using `winget` (Windows
 
 ## Files
 
-- **upgrade-script.ps1** - Main script with hardcoded exclusions (simpler, single-file solution)
-- **winget-upgrade-explained.ps1** - Enhanced version with modular code and external configuration (recommended)
+- **Update-InstalledPackages.ps1** - Main script with modular code, external configuration, and advanced features (recommended)
 - **winget-upgrade-exclusions.json** - List of package IDs to exclude from upgrades
 - **winget-upgrade-raw.json** - Sample reference of winget help output
 
@@ -32,30 +31,27 @@ A PowerShell utility to automate Windows package updates using `winget` (Windows
 ### Basic Usage
 ```powershell
 # Run with confirmation dialog
-.\upgrade-script.ps1
+.\Update-InstalledPackages.ps1
 
-# Or use the enhanced version
-.\winget-upgrade-explained.ps1
+# Run with Force mode (skip confirmation)
+.\Update-InstalledPackages.ps1 -Force
+
+# Run silently without user interaction
+.\Update-InstalledPackages.ps1 -Silent
 ```
 
-### Force Mode (Skip Confirmation)
+### Advanced Usage
 ```powershell
-.\upgrade-script.ps1 -Force
-.\winget-upgrade-explained.ps1 -Force
+# Use custom exclusions file
+.\Update-InstalledPackages.ps1 -ExclusionsFile C:\temp\my-exclusions.json
+
+# Use custom log directory
+.\Update-InstalledPackages.ps1 -LogDir C:\temp\logs
 ```
 
 ## Configuration
 
-### Upgrade Script
-Edit the `$ExcludeIds` array in **upgrade-script.ps1** to exclude packages:
-```powershell
-$ExcludeIds = @(
-    'Adobe.Acrobat.Reader.64-bit',
-    'AOMEI.PartitionAssistant'
-)
-```
-
-### Enhanced Version
+### Exclusions File
 Edit **winget-upgrade-exclusions.json** to exclude packages:
 ```json
 [
@@ -104,12 +100,14 @@ Logs contain:
 - Check if your `winget` version is compatible
 - Run `winget --version` to verify installation
 
-## Which Version to Use?
+## Available Parameters
 
-- **upgrade-script.ps1**: Simple, standalone, all-in-one solution
-- **winget-upgrade-explained.ps1**: Better organized, external configuration, easier to maintain
+The script supports the following command-line parameters:
 
-Both work identically from a user perspective; choose based on your preference.
+- `-Force` - Skip GUI confirmation and proceed automatically
+- `-Silent` - Alias for `-Force`
+- `-ExclusionsFile <path>` - Custom path to exclusions JSON file
+- `-LogDir <path>` - Custom directory for log files
 
 ## License
 
