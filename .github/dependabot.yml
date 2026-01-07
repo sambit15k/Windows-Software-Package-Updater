@@ -14,3 +14,4 @@ updates:
       github-actions:
         patterns:
           - "*"
+# Note: All workflow files are in .github/workflows/ directory
