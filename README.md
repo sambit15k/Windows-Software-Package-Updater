@@ -114,6 +114,20 @@ The script supports the following command-line parameters:
 - `-ExclusionsFile <path>` - Custom path to exclusions JSON file
 - `-LogDir <path>` - Custom directory for log files
 
+## Integrations
+
+### Slack Notifications
+To enable Slack notifications for pipeline status:
+1.  **Incoming Webhook**: Create an Incoming Webhook in your Slack Workspace and copy the URL.
+2.  **Repo Secret**: Go to GitHub Repo Settings > Secrets and variables > Actions > New repository secret.
+3.  **Name**: `SLACK_WEBHOOK_URL`
+4.  **Value**: Paste your webhook URL.
+
+### Slack App Integration
+To receive notifications for all repo events (Issues, PRs, etc.):
+1.  Install the [GitHub for Slack](https://slack.github.com/) app.
+2.  Run `/github subscribe owner/repo` in your Slack channel.
+
 ## License
 
 MIT License - Feel free to modify and distribute
