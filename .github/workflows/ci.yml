@@ -6,6 +6,8 @@ name: Deprecated CI
 on:
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   placeholder:
     runs-on: ubuntu-latest
