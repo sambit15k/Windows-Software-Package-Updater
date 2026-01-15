@@ -38,7 +38,7 @@ Add-Type -AssemblyName System.Windows.Forms
 # Determine Script Directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $ScriptDir) {
-    $ScriptDir = "C:\Users\$env:USERNAME\Documents\chatgpt"
+    $ScriptDir = $PWD.Path
 }
 
 # Determine Log File Path
@@ -178,6 +178,9 @@ function Get-WingetUpgrade {
     Write-WingetLog -Message "Parsing winget table output..." -Color "DarkGray"
     $raw = winget upgrade 2>&1
     Add-Content -Path $Script:CurrentLogFile -Value "`n===== RAW winget table output =====`n"
+    if ($raw) {
+        Add-Content -Path $Script:CurrentLogFile -Value ($raw -join "`n")
+    }
     return ConvertFrom-WingetTable -RawLines $raw
 }
 
