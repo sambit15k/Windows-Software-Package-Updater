@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*" Name="Windows Software Package Updater" Language="1033" Version="1.0.0.0" Manufacturer="Sambit15k" UpgradeCode="6eccf792-b0b6-4799-86bf-406a09426977">
+        <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+
+        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+        <MediaTemplate EmbedCab="yes" />
+
+        <Feature Id="ProductFeature" Title="Windows Software Package Updater" Level="1">
+            <ComponentGroupRef Id="ProductComponents" />
+            <ComponentRef Id="ApplicationShortcut" />
+        </Feature>
+    </Product>
+
+    <Fragment>
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder">
+                <Directory Id="INSTALLFOLDER" Name="WindowsSoftwarePackageUpdater" />
+            </Directory>
+            <Directory Id="ProgramMenuFolder" />
+        </Directory>
+    </Fragment>
+
+    <Fragment>
+        <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+            <Component Id="MainScript" Guid="5e329529-8a1a-4224-902a-59050c8aac00">
+                <!-- Helper to find the source file relative to the wxs file -->
+                <File Source="$(var.ProjectDir)..\Update-InstalledPackages.ps1" KeyPath="yes" />
+            </Component>
+            <Component Id="ExclusionsConfig" Guid="548b1e84-cc80-48d5-9465-5322b957548f">
+                <File Source="$(var.ProjectDir)..\winget-upgrade-exclusions.json" />
+            </Component>
+        </ComponentGroup>
+    </Fragment>
+
+    <Fragment>
+        <DirectoryRef Id="ProgramMenuFolder">
+            <Component Id="ApplicationShortcut" Guid="edbd2d29-1a7b-4a96-bc65-ef6a2601ed9b">
+                <Shortcut Id="ApplicationStartMenuShortcut" 
+                          Name="Windows Package Updater" 
+                          Description="Run the package updater script"
+                          Target="[System64Folder]WindowsPowerShell\v1.0\powershell.exe"
+                          Arguments="-NoProfile -ExecutionPolicy Bypass -File &quot;[INSTALLFOLDER]Update-InstalledPackages.ps1&quot;"
+                          WorkingDirectory="INSTALLFOLDER"/>
+                <RemoveFolder Id="CleanUpShortCut" Directory="ProgramMenuFolder" On="uninstall"/>
+                <RegistryValue Root="HKCU" Key="Software\Sambit15k\WindowsSoftwarePackageUpdater" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+            </Component>
+        </DirectoryRef>
+    </Fragment>
+</Wix>

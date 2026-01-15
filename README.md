@@ -7,11 +7,12 @@
 [![Dependabot Updates](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/dependabot/dependabot-updates)
 
 
-A PowerShell utility to automate Windows package updates using `winget` (Windows Package Manager) with support for exclusions, logging, and confirmation dialogs.
+A PowerShell utility to automate Windows package updates using **winget** (Windows Package Manager) and **Chocolatey**, with support for exclusions, logging, and confirmation dialogs.
 
 ## Features
 
-- **Automated Updates**: Queries `winget` for available package upgrades and performs them automatically
+- **Multi-Manager Support**: Updates packages from both `winget` and `chocolatey` (if installed)
+- **Automated Updates**: Queries for available package upgrades and performs them automatically
 - **Smart Parsing**: Detects `winget` version and uses JSON output (newer versions) with fallback to table parsing (older versions)
 - **Exclusion Management**: Specify packages to exclude from upgrades via JSON configuration
 - **GUI Confirmation**: Interactive dialog to review and confirm before upgrading
@@ -25,6 +26,7 @@ A PowerShell utility to automate Windows package updates using `winget` (Windows
 - Windows 10 or later
 - PowerShell 5.1+
 - `winget` installed (Windows Package Manager)
+- `chocolatey` installed (Optional, for Chocolatey support)
 - Administrator privileges
 
 ## Files
@@ -83,11 +85,13 @@ Logs contain:
 ## How It Works
 
 1. **Elevation Check**: Ensures script runs as Administrator
-2. **Winget Query**: Requests list of available upgrades
+2. **Query Upgrades**: Requests list of available upgrades from Winget and Chocolatey
 3. **Parsing**: Attempts JSON parsing first, falls back to table parsing if needed
 4. **Filtering**: Removes excluded packages from upgrade list
 5. **Confirmation**: Shows GUI dialog with packages to upgrade (can be skipped with `-Force`)
-6. **Execution**: Upgrades each package individually with proper flags
+6. **Execution**: Upgrades each package individually based on its source:
+    - **Winget**: `winget upgrade --id <ID> --accept-package-agreements --accept-source-agreements`
+    - **Chocolatey**: `choco upgrade <ID> -y`
 7. **Reporting**: Summarizes results and saves to log file
 
 ## Exit Codes

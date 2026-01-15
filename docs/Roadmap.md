@@ -7,7 +7,7 @@ This document outlines the future development plans for the **Windows Software P
 - [ ] **Task Scheduler Integration**: Add a helper script or switch to easily register the updater as a scheduled task for fully automated background updates.
 - [ ] **Email Notifications**: Add support for SMTP reporting in addition to Slack.
 - [ ] **Enhanced Logging**: formatting logs as JSON for better machine parsing.
-- [ ] **Chocolatey Support**: Investigate adding support for `choco upgrade all` alongside `winget`.
+- [x] **Chocolatey Support**: Added support for `choco upgrade all` alongside `winget`.
 
 ## Medium Term Goals (v2.x)
 

@@ -1,0 +1,45 @@
+name: Build MSI Installer
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'installer/**'
+      - 'Update-InstalledPackages.ps1'
+      - 'winget-upgrade-exclusions.json'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'installer/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup WiX Toolset
+      run: |
+        dotnet tool install --global wix
+
+    # Note: Modern WiX v4+ uses 'wix build'. 
+    # If using legacy WiX v3, checking out the wix-toolset action is better.
+    # However, 'windows-latest' usually has WiX v3 installed in %WIX%.
+    # Let's try using the pre-installed WiX v3 first as it's more standard for the XML I wrote (v3 syntax).
+    
+    - name: Add WiX to PATH
+      run: echo "$env:WIX\bin" >> $env:GITHUB_PATH
+
+    - name: Build MSI
+      working-directory: ./installer
+      run: |
+        candle.exe Product.wxs -dProjectDir=".\" -out Product.wixobj
+        light.exe Product.wixobj -out WindowsSoftwarePackageUpdater.msi
+
+    - name: Upload MSI Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: WindowsSoftwarePackageUpdater-Installer
+        path: installer/WindowsSoftwarePackageUpdater.msi

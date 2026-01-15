@@ -1,10 +1,11 @@
 <#
 .SYNOPSIS
-    Updates installed packages using winget with improved logging and exclusions.
+    Updates installed packages using Winget and Chocolatey with improved logging and exclusions.
 
 .DESCRIPTION
-    This script checks for available upgrades using winget, filters them based on a JSON exclusion list,
-    and performs upgrades. It produces a log file for each run.
+    This script checks for available upgrades using both Winget and Chocolatey (if installed).
+    It filters them based on a JSON exclusion list and performs upgrades. 
+    It produces a unified log file for each run.
 
 .PARAMETER LogPath
     Optional path to a specific log file or directory. If a directory is provided, a timestamped log is created.
@@ -48,10 +49,10 @@ if (-not $LogPath) {
         New-Item -Path $LogBaseDir -ItemType Directory -Force | Out-Null
     }
     $TimeStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $Script:CurrentLogFile = Join-Path $LogBaseDir ("winget-upgrade-" + $TimeStamp + ".log")
+    $Script:CurrentLogFile = Join-Path $LogBaseDir ("system-upgrade-" + $TimeStamp + ".log")
 } elseif (Test-Path -Path $LogPath -PathType Container) {
     $TimeStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $Script:CurrentLogFile = Join-Path $LogPath ("winget-upgrade-" + $TimeStamp + ".log")
+    $Script:CurrentLogFile = Join-Path $LogPath ("system-upgrade-" + $TimeStamp + ".log")
 } else {
     $parent = Split-Path -Parent $LogPath
     if (-not (Test-Path -Path $parent)) {
@@ -65,7 +66,7 @@ if (-not $ExclusionsFile) {
     $ExclusionsFile = Join-Path $ScriptDir "winget-upgrade-exclusions.json"
 }
 
-$AcceptFlags = '--accept-package-agreements --accept-source-agreements'
+$WingetAcceptFlags = '--accept-package-agreements --accept-source-agreements'
 
 # ------------------------
 # Functions
@@ -108,7 +109,7 @@ function Assert-AdminPrivilege {
     }
 }
 
-function Write-WingetLog {
+function Write-UpdaterLog {
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '')]
     param(
         [Parameter(Mandatory=$true)][string]$Message,
@@ -128,19 +129,23 @@ function Write-WingetLog {
 function Show-GuiConfirmation {
     $result = [System.Windows.Forms.MessageBox]::Show(
         "Proceed to upgrade the listed packages?",
-        "Winget Upgrade Confirmation",
+        "System Package Upgrade Confirmation",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Question
     )
     return $result -eq [System.Windows.Forms.DialogResult]::Yes
 }
 
+# ------------------------
+# Winget Functions
+# ------------------------
+
 function Get-WingetUpgrade {
     <#
     .SYNOPSIS
         Wraps the logic of trying JSON first, then failing back to Table parsing.
     #>
-    Write-WingetLog -Message "Querying winget for available upgrades..." -Color "Cyan"
+    Write-UpdaterLog -Message "Querying Winget for available upgrades..." -Color "Cyan"
 
     $upgrades = @()
     $triedJson = $false
@@ -159,29 +164,38 @@ function Get-WingetUpgrade {
         Add-Content -Path $Script:CurrentLogFile -Value "`n===== RAW winget JSON ATTEMPT =====`n"
 
         $upgrades = ConvertFrom-WingetJson -RawText $rawText
-
+        
         if ($upgrades) {
-            Write-WingetLog -Message "Successfully parsed upgrades from winget JSON output." -Color "DarkGray"
-            return $upgrades
+            Write-UpdaterLog -Message "Successfully parsed upgrades from winget JSON output." -Color "DarkGray"
         } else {
             throw "Failed to parse JSON from winget output."
         }
     } catch {
         if ($triedJson) {
-            Write-WingetLog -Message ("Winget JSON attempt failed: {0}. Falling back to table parsing." -f $_.Exception.Message) -Color "Yellow"
+            Write-UpdaterLog -Message ("Winget JSON attempt failed: {0}. Falling back to table parsing." -f $_.Exception.Message) -Color "Yellow"
         } else {
-            Write-WingetLog -Message "Winget does not support JSON output (or failed). Falling back to table parsing." -Color "Yellow"
+            Write-UpdaterLog -Message "Winget does not support JSON output (or failed). Falling back to table parsing." -Color "Yellow"
         }
+        
+        # Fallback to table parsing
+        Write-UpdaterLog -Message "Parsing winget table output..." -Color "DarkGray"
+        $raw = winget upgrade 2>&1
+        Add-Content -Path $Script:CurrentLogFile -Value "`n===== RAW winget table output =====`n"
+        if ($raw) {
+            Add-Content -Path $Script:CurrentLogFile -Value ($raw -join "`n")
+        }
+        $upgrades = ConvertFrom-WingetTable -RawLines $raw
     }
 
-    # Fallback
-    Write-WingetLog -Message "Parsing winget table output..." -Color "DarkGray"
-    $raw = winget upgrade 2>&1
-    Add-Content -Path $Script:CurrentLogFile -Value "`n===== RAW winget table output =====`n"
-    if ($raw) {
-        Add-Content -Path $Script:CurrentLogFile -Value ($raw -join "`n")
+    # Tag with Manager
+    $tagged = @()
+    if ($upgrades) {
+        foreach ($u in $upgrades) {
+            $u | Add-Member -NotePropertyName "Manager" -NotePropertyValue "Winget" -Force
+            $tagged += $u
+        }
     }
-    return ConvertFrom-WingetTable -RawLines $raw
+    return $tagged
 }
 
 function ConvertFrom-WingetJson {
@@ -223,7 +237,7 @@ function ConvertFrom-WingetJson {
         }
         return $results
     } catch {
-        Write-WingetLog -Message "Error internal parsing JSON: $_" -Color "Red"
+        Write-UpdaterLog -Message "Error internal parsing JSON: $_" -Color "Red"
         return $null
     }
 }
@@ -270,7 +284,55 @@ function ConvertFrom-WingetTable {
     }
 }
 
-function Invoke-WingetUpdate {
+# ------------------------
+# Chocolatey Functions
+# ------------------------
+
+function Get-ChocolateyUpgrade {
+    Write-UpdaterLog -Message "Querying Chocolatey for available upgrades..." -Color "Cyan"
+    
+    if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+        Write-UpdaterLog -Message "Chocolatey not found. Skipping." -Color "Gray"
+        return @()
+    }
+
+    $upgrades = @()
+    try {
+        # -r for raw output: name|version|new_version|pinned
+        $raw = choco outdated -r --ignore-pinned 2>&1
+        foreach ($line in $raw) {
+            # Skip empty lines or possible other output if not pipe delimited
+            if ($line -match '\|') {
+                $parts = $line -split '\|'
+                if ($parts.Count -ge 3) {
+                    $upgrades += [PSCustomObject]@{
+                        Name      = $parts[0]
+                        Id        = $parts[0] # Chocolatey uses ID as package name
+                        Version   = $parts[1]
+                        Available = $parts[2]
+                        Source    = 'chocolatey'
+                        Manager   = 'Chocolatey'
+                    }
+                }
+            }
+        }
+        
+        if ($upgrades.Count -gt 0) {
+            Write-UpdaterLog -Message ("Found {0} Chocolatey upgrades." -f $upgrades.Count) -Color "DarkGray"
+        } else {
+            Write-UpdaterLog -Message "No Chocolatey upgrades found." -Color "DarkGray"
+        }
+    } catch {
+        Write-UpdaterLog -Message "Error querying Chocolatey: $_" -Color "Red"
+    }
+    return $upgrades
+}
+
+# ------------------------
+# Main Update Logic
+# ------------------------
+
+function Invoke-PackageUpdate {
     [CmdletBinding(SupportsShouldProcess=$true)]
     param(
         [Parameter(Mandatory=$false)]
@@ -285,27 +347,35 @@ function Invoke-WingetUpdate {
     if ($ExclusionsFile -and (Test-Path $ExclusionsFile)) {
         try {
             $ExcludeIds = Get-Content -Path $ExclusionsFile -Raw | ConvertFrom-Json -ErrorAction Stop
-            Write-WingetLog -Message "Loaded exclusions from $ExclusionsFile" -Color "DarkGray"
+            Write-UpdaterLog -Message "Loaded exclusions from $ExclusionsFile" -Color "DarkGray"
         } catch {
             Write-Warning "Could not read '$ExclusionsFile'. Error: $_"
         }
     }
 
-    Write-WingetLog -Message "Starting upgrade session. Log: $Script:CurrentLogFile" -Color "Cyan"
+    Write-UpdaterLog -Message "Starting system upgrade session. Log: $Script:CurrentLogFile" -Color "Cyan"
 
-    # 2. Get Upgrades
-    $upgrades = Get-WingetUpgrade
+    # 2. Get Upgrades from all sources
+    $allUpgrades = @()
+    
+    # Winget
+    $wingetUpgrades = Get-WingetUpgrade
+    if ($wingetUpgrades) { $allUpgrades += $wingetUpgrades }
+    
+    # Chocolatey
+    $chocoUpgrades = Get-ChocolateyUpgrade
+    if ($chocoUpgrades) { $allUpgrades += $chocoUpgrades }
 
-    if (-not $upgrades -or $upgrades.Count -eq 0) {
-        Write-WingetLog -Message "No upgradable packages detected." -Color "Green"
+    if (-not $allUpgrades -or $allUpgrades.Count -eq 0) {
+        Write-UpdaterLog -Message "No upgradable packages detected from any source." -Color "Green"
         return
     }
 
-    Write-WingetLog -Message ("Found {0} potential upgrades." -f $upgrades.Count) -Color "Cyan"
+    Write-UpdaterLog -Message ("Found {0} potential upgrades total." -f $allUpgrades.Count) -Color "Cyan"
 
     # 3. Apply Exclusions
     $toUpgrade = @()
-    foreach ($u in $upgrades) {
+    foreach ($u in $allUpgrades) {
         # Normalize ID for comparison (remove version tags sometimes in ID field e.g. "Vendor.App [Source]")
         $cleanId = ($u.Id -split '[\s\[]')[0]
 
@@ -322,65 +392,78 @@ function Invoke-WingetUpdate {
     }
 
     if ($toUpgrade.Count -eq 0) {
-        Write-WingetLog -Message "All available upgrades are excluded." -Color "Yellow"
+        Write-UpdaterLog -Message "All available upgrades are excluded." -Color "Yellow"
         return
     }
 
     # 4. Confirm
-    Write-WingetLog -Message "Planned upgrades:" -Color "Cyan"
+    Write-UpdaterLog -Message "Planned upgrades:" -Color "Cyan"
     $toUpgrade | ForEach-Object {
-        Write-WingetLog -Message (" - {0} [{1}] ({2} -> {3})" -f $_.Name, $_.Id, $_.Version, $_.Available)
+        Write-UpdaterLog -Message (" - [{0}] {1} ({2} -> {3})" -f $_.Manager, $_.Name, $_.Version, $_.Available)
     }
 
     if (-not $Force) {
         if (-not (Show-GuiConfirmation)) {
-            Write-WingetLog -Message "User canceled." -Color "Yellow"
+            Write-UpdaterLog -Message "User canceled." -Color "Yellow"
             return
         }
     } else {
-        Write-WingetLog -Message "Force enabled, proceeding..." -Color "Cyan"
+        Write-UpdaterLog -Message "Force enabled, proceeding..." -Color "Cyan"
     }
 
     # 5. Execute
     $results = @()
     foreach ($pkg in $toUpgrade) {
-        Write-WingetLog -Message "Upgrading $($pkg.Name) [$($pkg.Id)]..." -Color "Magenta"
+        Write-UpdaterLog -Message "Upgrading $($pkg.Name) [$($pkg.Id)] via $($pkg.Manager)..." -Color "Magenta"
 
-        if ($PSCmdlet.ShouldProcess($pkg.Name, "Winget Upgrade")) {
-            $wingetArgs = @('upgrade', '--id', $pkg.Id) + ($AcceptFlags -split ' ')
-
+        if ($PSCmdlet.ShouldProcess($pkg.Name, "$($pkg.Manager) Upgrade")) {
+            
             $output = ""
             $exitCode = 0
+            $status = 'Failed'
+
             try {
-                $p = Start-Process -FilePath "winget" -ArgumentList $wingetArgs -NoNewWindow -PassThru -Wait
-                $exitCode = $p.ExitCode
+                if ($pkg.Manager -eq 'Winget') {
+                    $wingetArgs = @('upgrade', '--id', $pkg.Id) + ($WingetAcceptFlags -split ' ')
+                    $p = Start-Process -FilePath "winget" -ArgumentList $wingetArgs -NoNewWindow -PassThru -Wait
+                    $exitCode = $p.ExitCode
+                } elseif ($pkg.Manager -eq 'Chocolatey') {
+                    # choco upgrade <id> -y
+                    $chocoArgs = @('upgrade', $pkg.Id, '-y')
+                    $p = Start-Process -FilePath "choco" -ArgumentList $chocoArgs -NoNewWindow -PassThru -Wait
+                    $exitCode = $p.ExitCode
+                }
+
+                # Check success 
+                # Winget: 0 or -1978335189 (No applicable upgrade, sometimes happens if already done)
+                # Chocolatey: 0 usually
+                if ($exitCode -eq 0 -or $exitCode -eq -1978335189) {
+                    $status = 'Success'
+                    Write-UpdaterLog -Message "Success." -Color "Green"
+                } else {
+                    Write-UpdaterLog -Message "Failed. Exit code: $exitCode." -Color "Red"
+                }
+
             } catch {
                 $output = $_.Exception.Message
-                $exitCode = -1
-            }
-
-            # Check success (0 or 'No applicable upgrade' code)
-            $status = 'Failed'
-            if ($exitCode -eq 0 -or $exitCode -eq -1978335189) {
-                $status = 'Success'
-                Write-WingetLog -Message "Success." -Color "Green"
-            } else {
-                Write-WingetLog -Message "Failed. Exit code: $exitCode. Error: $output" -Color "Red"
+                Write-UpdaterLog -Message "Exception during upgrade: $output" -Color "Red"
+                $status = 'Error'
             }
 
             $results += [PSCustomObject]@{
                 Name = $pkg.Name
                 Id = $pkg.Id
+                Manager = $pkg.Manager
                 Result = $status
             }
         }
     }
 
     # 6. Summary
-    Write-WingetLog -Message "--- Summary ---" -Color "Cyan"
+    Write-UpdaterLog -Message "--- Summary ---" -Color "Cyan"
     $results | ForEach-Object {
         $color = if ($_.Result -eq 'Success') { 'Green' } else { 'Red' }
-        Write-WingetLog -Message ("{0}: {1}" -f $_.Name, $_.Result) -Color $color
+        Write-UpdaterLog -Message ("[{0}] {1}: {2}" -f $_.Manager, $_.Name, $_.Result) -Color $color
     }
 }
 
@@ -388,4 +471,4 @@ function Invoke-WingetUpdate {
 # Main Execution Entry
 # ------------------------
 Assert-AdminPrivilege
-Invoke-WingetUpdate -ExclusionsFile $ExclusionsFile -Force:$Force
+Invoke-PackageUpdate -ExclusionsFile $ExclusionsFile -Force:$Force
