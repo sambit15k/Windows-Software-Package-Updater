@@ -172,9 +172,7 @@ function Get-WingetUpgrade {
         }
     } catch {
         if ($triedJson) {
-            Write-UpdaterLog -Message ("Winget JSON attempt failed: {0}. Falling back to table parsing." -f $_.Exception.Message) -Color "Yellow"
-        } else {
-            Write-UpdaterLog -Message "Winget does not support JSON output (or failed). Falling back to table parsing." -Color "Yellow"
+            Write-UpdaterLog -Message ("Winget JSON attempt failed: {0}. Falling back to table parsing." -f $_.Exception.Message) -Color "DarkGray"
         }
         
         # Fallback to table parsing
@@ -250,31 +248,59 @@ function ConvertFrom-WingetTable {
         if (-not $sepMatch) { return $null }
 
         $sepIndex = $sepMatch.LineNumber - 1
-        $pkgLines = $lines[($sepIndex + 1)..($lines.Length - 1)] | Where-Object { $_.Trim() -ne '' }
+
+        $pkgLines = $lines[($sepIndex + 1)..($lines.Count - 1)] | Where-Object { 
+            $_.Trim() -ne '' -and 
+            $_ -notmatch '^\d+\s+upgrades available' -and
+            $_ -notmatch '^\d+\s+package\(s\)\s+have\s+version\s+numbers'
+        }
 
         $results = @()
         foreach ($line in $pkgLines) {
-            # Basic parsing strategy: multiple spaces are column separators
-            $l = $line -replace '\s+winget\s*$', '' # remove trailing 'winget' source if present
-            $normalized = ($l -replace '\s{2,}', ' | ').Trim()
-            $cols = $normalized -split '\s\|\s'
+            # Trim trailing source (winget) and spaces
+            $l = $line -replace '\s+winget\s*$', ''
+            $l = $l.Trim()
+            
+            # Split by whitespace
+            $parts = $l -split '\s+'
+            
+            # Since Id, Version, Available generally don't contain spaces...
+            # The last 3 items in the parts array are Available, Version, Id (in reverse)
+            # Everything before them is Name.
+            
+            if ($parts.Count -ge 4) {
+                # We expect at least chunks for: Name..., Id, Version, Available
+                $avail = $parts[-1]
+                $ver = $parts[-2]
+                $id = $parts[-3]
+                
+                # Reconstruct Name
+                $nameParts = $parts[0..($parts.Count - 4)]
+                $name = ($nameParts -join ' ').Trim()
 
-            if ($cols.Count -ge 2) {
-                $name = $cols[0].Trim()
-                # Handle Name [Id] format if present in first col
+                # Extra check in case name had `<name> [<id>]` format
                 if ($name -match '^(.*)\s\[(.*)\]$') {
                     $name = $matches[1]
-                    $id = $matches[2]
-                } else {
-                    $id = $cols[1].Trim()
                 }
 
                 $results += [PSCustomObject]@{
                     Name      = $name
                     Id        = $id
-                    Version   = if ($cols.Count -ge 3) { $cols[2].Trim() } else { $null }
-                    Available = if ($cols.Count -ge 4) { $cols[3].Trim() } else { $null }
-                    Source    = ''
+                    Version   = $ver
+                    Available = $avail
+                    Source    = 'winget'
+                }
+            } elseif ($parts.Count -eq 3) {
+                # It's possible to just have Name Id Version if there's no available version info
+                $ver = $parts[-1]
+                $id = $parts[-2]
+                $name = $parts[0].Trim()
+                $results += [PSCustomObject]@{
+                    Name      = $name
+                    Id        = $id
+                    Version   = $ver
+                    Available = ''
+                    Source    = 'winget'
                 }
             }
         }
