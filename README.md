@@ -33,7 +33,7 @@ A PowerShell utility to automate Windows package updates using **winget** (Windo
 
 - **Update-InstalledPackages.ps1** - Main script with modular code, external configuration, and advanced features (recommended)
 - **winget-upgrade-exclusions.json** - List of package IDs to exclude from upgrades
-- **winget-upgrade-raw.json** - Sample reference of winget help output
+- **winget-upgrade-raw.txt** - Sample reference of winget help output
 
 ## Usage
 
