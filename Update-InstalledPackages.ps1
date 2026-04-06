@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     This script checks for available upgrades using both Winget and Chocolatey (if installed).
-    It filters them based on a JSON exclusion list and performs upgrades. 
+    It filters them based on a JSON exclusion list and performs upgrades.
     It produces a unified log file for each run.
 
 .PARAMETER LogPath
@@ -167,7 +167,7 @@ function Get-WingetUpgrade {
         Add-Content -Path $Script:CurrentLogFile -Value "`n===== RAW winget JSON ATTEMPT =====`n"
 
         $upgrades = ConvertFrom-WingetJson -RawText $rawText
-        
+
         if ($upgrades) {
             Write-UpdaterLog -Message "Successfully parsed upgrades from winget JSON output." -Color "DarkGray"
         } else {
@@ -177,7 +177,7 @@ function Get-WingetUpgrade {
         if ($triedJson) {
             Write-UpdaterLog -Message ("Winget JSON attempt failed: {0}. Falling back to table parsing." -f $_.Exception.Message) -Color "DarkGray"
         }
-        
+
         # Fallback to table parsing
         Write-UpdaterLog -Message "Parsing winget table output..." -Color "DarkGray"
         $raw = winget upgrade 2>&1
@@ -252,8 +252,8 @@ function ConvertFrom-WingetTable {
 
         $sepIndex = $sepMatch.LineNumber - 1
 
-        $pkgLines = $lines[($sepIndex + 1)..($lines.Count - 1)] | Where-Object { 
-            $_.Trim() -ne '' -and 
+        $pkgLines = $lines[($sepIndex + 1)..($lines.Count - 1)] | Where-Object {
+            $_.Trim() -ne '' -and
             $_ -notmatch '^\d+\s+upgrades available' -and
             $_ -notmatch '^\d+\s+package\(s\)\s+have\s+version\s+numbers'
         }
@@ -263,20 +263,20 @@ function ConvertFrom-WingetTable {
             # Trim trailing source (winget) and spaces
             $l = $line -replace '\s+winget\s*$', ''
             $l = $l.Trim()
-            
+
             # Split by whitespace
             $parts = $l -split '\s+'
-            
+
             # Since Id, Version, Available generally don't contain spaces...
             # The last 3 items in the parts array are Available, Version, Id (in reverse)
             # Everything before them is Name.
-            
+
             if ($parts.Count -ge 4) {
                 # We expect at least chunks for: Name..., Id, Version, Available
                 $avail = $parts[-1]
                 $ver = $parts[-2]
                 $id = $parts[-3]
-                
+
                 # Reconstruct Name
                 $nameParts = $parts[0..($parts.Count - 4)]
                 $name = ($nameParts -join ' ').Trim()
@@ -319,7 +319,7 @@ function ConvertFrom-WingetTable {
 
 function Get-ChocolateyUpgrade {
     Write-UpdaterLog -Message "Querying Chocolatey for available upgrades..." -Color "Cyan"
-    
+
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
         Write-UpdaterLog -Message "Chocolatey not found. Skipping." -Color "Gray"
         return @()
@@ -345,7 +345,7 @@ function Get-ChocolateyUpgrade {
                 }
             }
         }
-        
+
         if ($upgrades.Count -gt 0) {
             Write-UpdaterLog -Message ("Found {0} Chocolatey upgrades." -f $upgrades.Count) -Color "DarkGray"
         } else {
@@ -386,11 +386,11 @@ function Invoke-PackageUpdate {
 
     # 2. Get Upgrades from all sources
     $allUpgrades = @()
-    
+
     # Winget
     $wingetUpgrades = Get-WingetUpgrade
     if ($wingetUpgrades) { $allUpgrades += $wingetUpgrades }
-    
+
     # Chocolatey
     $chocoUpgrades = Get-ChocolateyUpgrade
     if ($chocoUpgrades) { $allUpgrades += $chocoUpgrades }
@@ -446,7 +446,7 @@ function Invoke-PackageUpdate {
         Write-UpdaterLog -Message "Upgrading $($pkg.Name) [$($pkg.Id)] via $($pkg.Manager)..." -Color "Magenta"
 
         if ($PSCmdlet.ShouldProcess($pkg.Name, "$($pkg.Manager) Upgrade")) {
-            
+
             $output = ""
             $exitCode = 0
             $status = 'Failed'
@@ -463,7 +463,7 @@ function Invoke-PackageUpdate {
                     $exitCode = $p.ExitCode
                 }
 
-                # Check success 
+                # Check success
                 # Winget: 0 or -1978335189 (No applicable upgrade, sometimes happens if already done)
                 # Chocolatey: 0 usually
                 if ($exitCode -eq 0 -or $exitCode -eq -1978335189) {
