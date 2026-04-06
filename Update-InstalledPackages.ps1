@@ -73,6 +73,7 @@ $WingetAcceptFlags = '--accept-package-agreements --accept-source-agreements'
 # ------------------------
 
 function Assert-AdminPrivilege {
+    param($ScriptParameters)
     $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
     if (-not $principal.IsInRole([System.Security.Principal.WindowsBuiltinRole]::Administrator)) {
@@ -87,13 +88,15 @@ function Assert-AdminPrivilege {
         }
 
         # Reconstruct arguments
-        $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $MyInvocation.MyCommand.Path)
-        $BoundParameters.GetEnumerator() | ForEach-Object {
-            if ($_.Value -is [switch] -and $_.Value) {
-                $argsList += "-$($_.Key)"
-            } elseif ($_.Value -isnot [switch]) {
-                $argsList += "-$($_.Key)"
-                $argsList += "`"$($_.Value)`""
+        $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $PSCommandPath)
+        if ($ScriptParameters) {
+            $ScriptParameters.GetEnumerator() | ForEach-Object {
+                if ($_.Value -is [switch] -and $_.Value) {
+                    $argsList += "-$($_.Key)"
+                } elseif ($_.Value -isnot [switch]) {
+                    $argsList += "-$($_.Key)"
+                    $argsList += "`"$($_.Value)`""
+                }
             }
         }
 
@@ -496,5 +499,5 @@ function Invoke-PackageUpdate {
 # ------------------------
 # Main Execution Entry
 # ------------------------
-Assert-AdminPrivilege
+Assert-AdminPrivilege -ScriptParameters $PSBoundParameters
 Invoke-PackageUpdate -ExclusionsFile $ExclusionsFile -Force:$Force
