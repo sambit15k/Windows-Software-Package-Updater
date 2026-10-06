@@ -19,11 +19,13 @@
       * Fix: $WingetAcceptFlags converted to proper array
     </releaseNotes>
     <tags>powershell winget updater automation</tags>
+    <icon>logo.jpg</icon>
     <repository type="git" url="https://github.com/sambit15k/Windows-Software-Package-Updater" />
   </metadata>
   <files>
     <file src="Update-InstalledPackages.ps1" target="content\Update-InstalledPackages.ps1" />
     <file src="README.md" target="" />
     <file src="winget-upgrade-exclusions.jsonc" target="content\winget-upgrade-exclusions.jsonc" />
+    <file src="logo.jpg" target="" />
   </files>
 </package>

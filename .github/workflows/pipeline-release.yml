@@ -34,6 +34,8 @@ jobs:
           files: |
             Windows-Software-Package-Updater-${{ github.ref_name }}.zip
             Update-InstalledPackages.ps1
+            winget-upgrade-exclusions.jsonc
+            logo.jpg
           generate_release_notes: true
           draft: false
           prerelease: false

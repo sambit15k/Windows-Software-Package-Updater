@@ -11,7 +11,7 @@ This document outlines the future development plans for the **Windows Software P
 
 ## Medium Term Goals (v2.x)
 
-- [ ] **Configuration UI**: A simple WPF or WinForms GUI to manage the `winget-upgrade-exclusions.json` file without editing text manually.
+- [ ] **Configuration UI**: A simple WPF or WinForms GUI to manage the `winget-upgrade-exclusions.jsonc` file without editing text manually.
 - [ ] **Rollback Capability**: If an update fails, attempt to restore the previous version (dependent on Winget capabilities).
 - [ ] **Remote Management**: Ability to trigger updates on remote machines via PowerShell Remoting (WinRM).
 

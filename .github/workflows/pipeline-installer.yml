@@ -6,7 +6,7 @@ on:
     paths:
       - 'installer/**'
       - 'Update-InstalledPackages.ps1'
-      - 'winget-upgrade-exclusions.json'
+      - 'winget-upgrade-exclusions.jsonc'
   pull_request:
     branches: [ "main" ]
     paths:
