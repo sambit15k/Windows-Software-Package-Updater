@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-    <Product Id="*" Name="Windows Software Package Updater" Language="1033" Version="1.0.0.0" Manufacturer="Sambit15k" UpgradeCode="6eccf792-b0b6-4799-86bf-406a09426977">
+    <Product Id="*" Name="Windows Software Package Updater" Language="1033" Version="2.2.0.0" Manufacturer="Sambit15k" UpgradeCode="6eccf792-b0b6-4799-86bf-406a09426977">
         <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
 
         <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
@@ -28,7 +28,7 @@
                 <File Source="$(var.ProjectDir)..\Update-InstalledPackages.ps1" KeyPath="yes" />
             </Component>
             <Component Id="ExclusionsConfig" Guid="548b1e84-cc80-48d5-9465-5322b957548f">
-                <File Source="$(var.ProjectDir)..\winget-upgrade-exclusions.json" />
+                <File Source="$(var.ProjectDir)..\winget-upgrade-exclusions.jsonc" />
             </Component>
         </ComponentGroup>
     </Fragment>
