@@ -21,6 +21,8 @@ jobs:
           mkdir assets
           cp Update-InstalledPackages.ps1 assets/
           cp README.md assets/
+          cp logo.jpg assets/
+          if [ -f winget-upgrade-exclusions.jsonc ]; then cp winget-upgrade-exclusions.jsonc assets/; fi
           if [ -f winget-upgrade-exclusions.json ]; then cp winget-upgrade-exclusions.json assets/; fi
           
           # Create a specific zip name with the tag
