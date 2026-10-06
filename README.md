@@ -1,5 +1,9 @@
 # Windows Software Package Updater
 
+<p align="center">
+  <img src="logo.jpg" alt="Windows Software Package Updater Logo" width="320" />
+</p>
+
 [![Enterprise CI/CD](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-ci.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-ci.yml)
 [![Publish Release](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-release.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-release.yml)
 [![Publish Package](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-nuget-publish.yml/badge.svg)](https://github.com/sambit15k/Windows-Software-Package-Updater/actions/workflows/pipeline-nuget-publish.yml)
